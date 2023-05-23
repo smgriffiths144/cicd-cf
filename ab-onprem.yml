@@ -32,7 +32,7 @@ Parameters:
   SourceSGPrefix:
     Type: String
     Description: Amazon Corp network prefix list for Security Groups - default eu-west-2
-    Default: 0.0.0.0/0
+    Default: pl-fca24795
     AllowedValues:
       - pl-fca24795
       - pl-7dac4914
