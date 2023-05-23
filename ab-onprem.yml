@@ -13,11 +13,6 @@ Parameters:
     Description: The AMI ID for mySQL Server
     Type: String
     Default: ami-0d96f347fa2c999cd
-  KeyName:
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
-    Type: 'AWS::EC2::KeyPair::KeyName'
-    Default: eu-west-3
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
@@ -287,7 +282,6 @@ Resources:
           - GroupId
       SubnetId: !Ref PublicSubnet1
       IamInstanceProfile: !Ref EC2StuffInstanceProfile
-      KeyName: !Ref KeyName
       ImageId: !Ref LatestAmiId
       UserData: !Base64 
         'Fn::Join':
@@ -309,7 +303,6 @@ Resources:
           - GroupId
       SubnetId: !Ref PrivateSubnet1
       IamInstanceProfile: !Ref EC2StuffInstanceProfile
-      KeyName: !Ref KeyName
       ImageId: !Ref MySQLAmiId
       UserData: !Base64 
         'Fn::Join':
