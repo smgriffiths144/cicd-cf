@@ -13,10 +13,6 @@ Parameters:
     Description: The AMI ID for mySQL Server
     Type: String
     Default: ami-0d96f347fa2c999cd
-  S3WebSite:
-    Description: S3 Bucket Source for Website
-    Type: String
-    Default: smgriffiths123-website
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
     Type: 'AWS::EC2::KeyPair::KeyName'
@@ -49,11 +45,6 @@ Parameters:
     ConstraintDescription : choose from CDG LHR or DUB.
   VolumeName:
     Description: The name to be used for the EFS volume
-    Type: String
-    MinLength: '1'
-    Default: myEFSvolume
-  MountPoint:
-    Description: The Linux mount point for the EFS volume
     Type: String
     MinLength: '1'
     Default: myEFSvolume
@@ -143,7 +134,6 @@ Resources:
     Properties:
         Domain: vpc
   RouteNATGateway:
-    DependsOn: NATGateway
     Type: AWS::EC2::Route
     Properties:
         RouteTableId: !Ref PrivateRouteTable
