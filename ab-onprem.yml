@@ -32,12 +32,13 @@ Parameters:
   SourceSGPrefix:
     Type: String
     Description: Amazon Corp network prefix list for Security Groups - default eu-west-2
-    Default: pl-fca24795
+    Default: pl-60b85b09
     AllowedValues:
       - pl-fca24795
       - pl-7dac4914
       - pl-01a74268
-    ConstraintDescription : choose from CDG LHR or DUB.
+      - pl-60b85b09
+    ConstraintDescription : choose from CDG LHR or DUB or us-east-1.
   VolumeName:
     Description: The name to be used for the EFS volume
     Type: String
