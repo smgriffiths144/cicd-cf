@@ -356,7 +356,31 @@ Resources:
             sudo mount -t efs -o tls Ref: FileSystem c:/ efs
       Tags:
         - Key: Name
-          Value: build04
+          Value: build04        
+  sqlserver:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: t3.micro
+      SecurityGroupIds:
+        - !GetAtt 
+          - WebServerSG
+          - GroupId
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref EC2StuffInstanceProfile
+      ImageId: !Ref LatestAmiId
+      UserData: !Base64 
+          "Fn::Sub": |
+            #!/bin/bash
+            sudo su
+            yum update -y
+            curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
+            sudo bash mariadb_repo_setup --os-type=rhel --os-version=7 --mariadb-server-version=10.6
+            yum install -y MariaDB-server
+            systemctl start mariadb.service
+            mysql_secure_installation
+      Tags:
+        - Key: Name
+          Value: sql-server
 #EFS=============================================================================
   FileSystem:
     Type: AWS::EFS::FileSystem
