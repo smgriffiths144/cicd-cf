@@ -304,7 +304,7 @@ Resources:
           - GroupId
       SubnetId: !Ref PrivateSubnet1
       IamInstanceProfile: !Ref EC2StuffInstanceProfile
-      ImageId: !Ref MySQLAmiId
+      ImageId: !Ref LatestAmiId
       UserData: !Base64 
         'Fn::Join':
           - ''
