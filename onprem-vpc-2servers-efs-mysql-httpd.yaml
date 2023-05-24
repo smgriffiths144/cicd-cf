@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: VPC with 2 subnets in 2AZs
+Description: VPC with 2 subnets in 2AZs with 2 web servers and efs shared storage
 Parameters:
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
