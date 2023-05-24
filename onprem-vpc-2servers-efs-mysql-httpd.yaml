@@ -1,0 +1,408 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC with 2 subnets in 2AZs
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: SMG
+  LatestAmiId:
+    Description: Gets the latest AMI from Systems Manager Parameter store
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnet1CIDR:
+    Description: >-
+      Please enter the IP range (CIDR notation) for the public subnet in the
+      first Availability Zone
+    Type: String
+    Default: 10.0.1.0/24
+  PrivateSubnet1CIDR:
+    Description: >-
+      Please enter the IP range (CIDR notation) for the Private subnet in the
+      first Availability Zone
+    Type: String
+    Default: 10.0.100.0/24
+  SourceSGPrefix:
+    Type: String
+    Description: Amazon Corp network prefix list for Security Groups - default us-east-1
+    Default: pl-60b85b09
+    AllowedValues:
+      - pl-fca24795
+      - pl-7dac4914
+      - pl-01a74268
+      - pl-60b85b09
+    ConstraintDescription : choose from CDG LHR or DUB.
+  VolumeName:
+    Description: The name to be used for the EFS volume
+    Type: String
+    MinLength: '1'
+    Default: myEFSvolume
+  MountPoint:
+    Description: The Linux mount point for the EFS volume
+    Type: String
+    MinLength: '1'
+    Default: myEFSvolume
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName} Public Subnet (AZ1)'
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName} Private Subnet (AZ1)'
+  PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName} Private Routes'
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName} Public Routes'
+  DefaultPublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+  PrivateSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+  NATGateway:       
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+        Domain: vpc
+  RouteNATGateway:
+    DependsOn: NATGateway
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref NATGateway
+#Security Groups=================================================
+  WebServerSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Web DMZ
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          SourcePrefixListId: !Ref SourceSGPrefix
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          SourcePrefixListId: !Ref SourceSGPrefix
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SourcePrefixListId: !Ref SourceSGPrefix
+      Tags:
+        - Key: Name
+          Value: Web
+  ALBSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SourcePrefixListId: !Ref SourceSGPrefix
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          SourcePrefixListId: !Ref SourceSGPrefix
+      Tags:
+        - Key: Name
+          Value: ALB
+  DatabaseServerSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Database
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '3306'
+          ToPort: '3306'
+          SourceSecurityGroupId: !Ref WebServerSG
+      Tags:
+        - Key: Name
+          Value: Database
+  MountTargetSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: EFS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '2049'
+          ToPort: '2049'
+          SourceSecurityGroupId: !Ref DatabaseServerSG
+        - IpProtocol: tcp
+          FromPort: '2049'
+          ToPort: '2049'
+          SourceSecurityGroupId: !Ref WebServerSG
+      Tags:
+        - Key: Name
+          Value: NFS
+  #IAM section==============================================
+  EC2StuffInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EC2StuffRole
+  EC2StuffPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: EC2StuffPolicy
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:*'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'ssm:DescribeAssociation'
+              - 'ssm:GetDeployablePatchSnapshotForInstance'
+              - 'ssm:GetDocument'
+              - 'ssm:DescribeDocument'
+              - 'ssm:GetManifest'
+              - 'ssm:GetParameter'
+              - 'ssm:GetParameters'
+              - 'ssm:ListAssociations'
+              - 'ssm:ListInstanceAssociations'
+              - 'ssm:PutInventory'
+              - 'ssm:PutComplianceItems'
+              - 'ssm:PutConfigurePackageResult'
+              - 'ssm:UpdateAssociationStatus'
+              - 'ssm:UpdateInstanceAssociationStatus'
+              - 'ssm:UpdateInstanceInformation'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'ssmmessages:CreateControlChannel'
+              - 'ssmmessages:CreateDataChannel'
+              - 'ssmmessages:OpenControlChannel'
+              - 'ssmmessages:OpenDataChannel'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'ec2messages:AcknowledgeMessage'
+              - 'ec2messages:DeleteMessage'
+              - 'ec2messages:FailMessage'
+              - 'ec2messages:GetEndpoint'
+              - 'ec2messages:GetMessages'
+              - 'ec2messages:SendReply'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'cloudwatch:PutMetricData'
+              - 'ec2:DescribeVolumes'
+              - 'ec2:DescribeTags'
+              - 'logs:PutLogEvents'
+              - 'logs:DescribeLogStreams'
+              - 'logs:DescribeLogGroups'
+              - 'logs:CreateLogStream'
+              - 'logs:CreateLogGroup'
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - 'ssm:GetParameter'
+            Resource: 'arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*'
+      Roles:
+        - !Ref EC2StuffRole
+  EC2StuffRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+  #Server section==============================================
+  WEB01:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: t3.micro
+      SecurityGroupIds:
+        - !GetAtt 
+          - WebServerSG
+          - GroupId
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref EC2StuffInstanceProfile
+      ImageId: !Ref LatestAmiId
+      UserData: !Base64 
+          "Fn::Sub": |
+            #!/bin/bash
+            sudo su
+            yum update -y
+            yum install -y amazon-efs-utils
+            yum install -y amazon-linux-extras
+            amazon-linux-extras enable php7.4
+            yum clean metadata
+            yum install -y \
+              httpd \
+              php \
+              php-mysqlnd \
+              php-xml \
+              php-mbstring
+            systemctl enable httpd
+            cd /var/www/html
+            mkdir wordpress
+            wget http://wordpress.org/latest.tar.gz
+            cp  latest.tar.gz /var/www/html/
+            cd /var/www/html
+            tar -xvzf latest.tar.gz
+            cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+            cd /var/www/html/wordpress
+            systemctl start httpd
+            
+      Tags:
+        - Key: Name
+          Value: Webserver01
+  build04:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: t3.micro
+      SecurityGroupIds:
+        - !GetAtt 
+          - WebServerSG
+          - GroupId
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref EC2StuffInstanceProfile
+      ImageId: !Ref LatestAmiId
+      UserData: !Base64 
+          "Fn::Sub": |
+            #!/bin/bash
+            sudo su
+            yum update -y
+            yum install -y amazon-efs-utils
+            cd /tmp/
+            mkdir source
+            cd /tmp/source/
+            wget http://wordpress.org/latest.tar.gz    
+            tar -xvzf latest.tar.gz
+            echo Ref: FileSystem > output.txt
+            cd /tmp/
+            mkdir efs   
+            sudo mount -t efs -o tls Ref: FileSystem c:/ efs
+      Tags:
+        - Key: Name
+          Value: build04
+#EFS=============================================================================
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      Encrypted: true
+      FileSystemTags:
+      - Key: Name
+        Value:
+          Ref: VolumeName
+  MountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: FileSystem
+      SubnetId:
+        Ref: PrivateSubnet1
+      SecurityGroups:
+      - Ref: MountTargetSecurityGroup
+  FileSystem2:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      Encrypted: true
+      FileSystemTags:
+      - Key: Name
+        Value:
+          Ref: VolumeName
+  MountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: FileSystem2
+      SubnetId:
+        Ref: PrivateSubnet1
+      SecurityGroups:
+      - Ref: MountTargetSecurityGroup
+#RDS===========================================================================
+#ASG============================================================================
+#CloudFront============================================================================
+Outputs:
+  WordpressUrl:
+    Value: !Sub
+      - "http://${IpAddress}/wordpress"
+      - IpAddress: !GetAtt WEB01.PublicIp
+    Description: "Wordpress site url"
+  Sourcemounttarget:
+    Value: !Ref FileSystem
+    Description: "Source-EFS-mount-target"
