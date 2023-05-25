@@ -327,7 +327,7 @@ Resources:
             
       Tags:
         - Key: Name
-          Value: Webserver01
+          Value: WebserverWO-EFS
   build04:
     Type: 'AWS::EC2::Instance'
     Properties:
@@ -356,7 +356,7 @@ Resources:
             sudo mount -t efs -o tls Ref: FileSystem c:/ efs
       Tags:
         - Key: Name
-          Value: build04        
+          Value: WebServerwithEFS      
   sqlserver:
     Type: 'AWS::EC2::Instance'
     Properties:
