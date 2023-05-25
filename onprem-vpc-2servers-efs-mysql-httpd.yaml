@@ -158,7 +158,7 @@ Resources:
           SourcePrefixListId: !Ref SourceSGPrefix
       Tags:
         - Key: Name
-          Value: Web
+          Value: ANEWNAME
   ALBSG:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -175,7 +175,7 @@ Resources:
           SourcePrefixListId: !Ref SourceSGPrefix
       Tags:
         - Key: Name
-          Value: ALB
+          Value: noALBishere
   DatabaseServerSG:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -188,7 +188,7 @@ Resources:
           SourceSecurityGroupId: !Ref WebServerSG
       Tags:
         - Key: Name
-          Value: Database
+          Value: DatabaseSecurityGroup
   MountTargetSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -360,7 +360,7 @@ Resources:
   sqlserver:
     Type: 'AWS::EC2::Instance'
     Properties:
-      InstanceType: t3.micro
+      InstanceType: t3.medium
       SecurityGroupIds:
         - !GetAtt 
           - WebServerSG
