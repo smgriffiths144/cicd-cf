@@ -360,7 +360,7 @@ Resources:
   sqlserver:
     Type: 'AWS::EC2::Instance'
     Properties:
-      InstanceType: t3.medium
+      InstanceType: t3.micro
       SecurityGroupIds:
         - !GetAtt 
           - WebServerSG
