@@ -14,6 +14,7 @@ Parameters:
     Description: A name for pipeline
     Type: String
   S3Bucket:
+    Default: smgriffiths-pipeline
     Description: The name of the S3 bucket that contains the source artifact, which must be in the same region as this stack
     Type: String
   SourceS3Key:
@@ -45,6 +46,7 @@ Parameters:
     Description: A name for the production WordPress stack change set
     Type: String
   Email:
+    Default: smgriffiths@yahoo.com
     Description: The email address where CodePipeline sends pipeline notifications
     Type: String
 
@@ -73,6 +75,11 @@ Metadata:
 
 Resources:
   ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  SourceStoreBucket:
     Type: AWS::S3::Bucket
     Properties:
       VersioningConfiguration:
