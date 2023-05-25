@@ -82,6 +82,7 @@ Resources:
   SourceStoreBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Ref S3Bucket
       VersioningConfiguration:
         Status: Enabled
 
