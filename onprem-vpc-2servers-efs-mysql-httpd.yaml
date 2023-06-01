@@ -380,7 +380,7 @@ Resources:
             mysql_secure_installation
       Tags:
         - Key: Name
-          Value: sql-booooohoooo
+          Value: sql-server
 #EFS=============================================================================
   FileSystem:
     Type: AWS::EFS::FileSystem
